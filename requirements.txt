@@ -16,7 +16,7 @@ llvmlite==0.39.0
 MarkupSafe==2.1.1
 numba==0.56.0
 numpy==1.21.6
-pandas==1.4.3
+pandas==1.0.5
 plotly==5.9.0
 pynndescent==0.5.7
 python-dateutil==2.8.2
