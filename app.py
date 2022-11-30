@@ -547,7 +547,7 @@ def generateUmap(n_clicks, data):
     if n_clicks == 0:
         return [dash.no_update, dash.no_update]
     else:
-        reducer = umap.UMAP()
+        reducer = umap.UMAP(low_memory = True)
         df = pd.DataFrame(data[1:], columns = data[0])
         df = df[df.columns[7:]]
         df.replace('','0', inplace = True)
