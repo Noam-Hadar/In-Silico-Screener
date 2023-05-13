@@ -290,11 +290,11 @@ def uploadGroupingFile(grouping_file):
             grouping_df = pd.DataFrame(data[1:], columns = data[0])
             if list(grouping_df.columns) != ['Sample','Group']:
                 return [['Corrupted grouping file, ', html.A('reupload')], None]
-            return [['Grouping file uploaded'], grouping_df.to_dict('records')]
+            return [['Groups file uploaded'], grouping_df.to_dict('records')]
         except:
-            return [['Corrupted grouping file, ', html.A('reupload')], None]
+            return [['Corrupted groups file, ', html.A('reupload')], None]
     else:
-        return [['optional: add ', html.A('grouping file')], None]
+        return [['optional: add ', html.A('groups file')], None]
 
 
 # In[7]:
