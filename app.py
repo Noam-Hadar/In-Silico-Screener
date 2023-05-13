@@ -100,7 +100,7 @@ app.layout = html.Div(
             dcc.Upload(
                 id='groups_upload',
                 children=html.Div([
-                'optional: add ',
+                'Optional: add ',
                 html.A('groups file')
                 ],
                 id = 'grouping_upload_text',
@@ -294,7 +294,7 @@ def uploadGroupingFile(grouping_file):
         except:
             return [['Corrupted groups file, ', html.A('reupload')], None]
     else:
-        return [['optional: add ', html.A('groups file')], None]
+        return [['Optional: add ', html.A('groups file')], None]
 
 
 # In[7]:
