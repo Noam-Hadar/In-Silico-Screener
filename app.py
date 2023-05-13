@@ -101,7 +101,7 @@ app.layout = html.Div(
                 id='groups_upload',
                 children=html.Div([
                 'optional: add ',
-                html.A('grouping file')
+                html.A('groups file')
                 ],
                 id = 'grouping_upload_text',
                 style={
