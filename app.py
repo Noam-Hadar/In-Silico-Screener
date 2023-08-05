@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import base64
 import urllib.parse
 import gzip, io
-from time import time
 
 import pandas as pd
 from scipy.spatial import distance_matrix
@@ -15,7 +14,7 @@ import umap
 from sklearn.preprocessing import StandardScaler
 
 import dash
-from dash.dependencies import Input, Output, State
+from dash.dependencies import Input, Output, State, ClientsideFunction
 from dash import dcc
 from dash import html
 from dash import dash_table
@@ -23,24 +22,23 @@ import plotly.graph_objs as go
 import plotly.express as px
 
 
-# In[2]:
+# In[ ]:
 
 
 pythonScriptDownloadLink = 'assets/In-Silico_Screener_VCF_merger.py'
 linkStyle = {'width' : '20%', 'margin' : 10, 'display' : 'inline-block', 'color' : "#077be2",'font-family' : 'gisha', 'fontSize' : 15, 'textAlign' : 'center' ,'borderWidth' : '2px','borderColor' : "#000044",'borderStyle' : 'groove','padding': 4,'borderRadius' : '5px'}
 
 
-# In[3]:
+# In[ ]:
 
 
 external_stylesheets = ['assets/ISS.css']
-app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+app = dash.Dash(__name__, external_stylesheets = external_stylesheets)
 server = app.server
 app.title = "In-Silico Screener | Ohad Birk's Lab"
-#app.config['suppress_callback_exceptions'] = True
 
 
-# In[4]:
+# In[ ]:
 
 
 app.layout = html.Div(
@@ -207,7 +205,7 @@ app.layout = html.Div(
             ),
             html.Hr(),
             html.Button(
-                'Check sample similarities',
+                'Analyze sample similarities',
                 id = 'population_start_btn',
                 n_clicks = 0,
                 style = {'text-transform' : 'none', 'font-size' : 24, 'margin' : 'auto'},
@@ -227,12 +225,13 @@ app.layout = html.Div(
         dcc.Store(id = 'yyf_df'),
         dcc.Store(id = 'grouping_df'),
         dcc.Store(id = 'heatmap_df'),
+        dcc.Store(id = 'cluster_btn_clicks'),
     ]
     )
 )
 
 
-# In[5]:
+# In[ ]:
 
 
 @app.callback(
@@ -269,7 +268,7 @@ def uploadYYF(yyf, file_name):
         return [True, ['Drag or ', html.A('select YYF file here')], None]
 
 
-# In[6]:
+# In[ ]:
 
 
 @app.callback(
@@ -294,10 +293,10 @@ def uploadGroupingFile(grouping_file):
         except:
             return [['Corrupted groups file, ', html.A('reupload')], None]
     else:
-        return [['Optional: add ', html.A('groups file')], None]
+        return [['optional: add ', html.A('groups file')], None]
 
 
-# In[7]:
+# In[ ]:
 
 
 @app.callback(
@@ -322,7 +321,7 @@ def updateUploadingStatus(x, y, yyf_df, grouping_df):
         return ['Awating input files']
 
 
-# In[8]:
+# In[ ]:
 
 
 @app.callback(
@@ -354,7 +353,7 @@ def startAnalysis(n_clicks, data):
         return [default_style, {'display' : 'none'}, None, None, None, None]
 
 
-# In[9]:
+# In[ ]:
 
 
 @app.callback(
@@ -366,7 +365,7 @@ def startAnalysis(n_clicks, data):
      Input('grouping_df', 'data')]
 )
 def getVariantData(selected_row_index, data, referenceGenome, grouping_df):
-    if selected_row_index in [[], None, ()]:
+    if selected_row_index in [[], None]:
         return [[html.P('Select row for more information'), html.Img(src = 'assets/click_demo.gif')]]
     else:
         row = data[selected_row_index[0]]
@@ -408,6 +407,12 @@ def getVariantData(selected_row_index, data, referenceGenome, grouping_df):
                 gnomAD_Url = 'https://gnomad.broadinstitute.org/variant/' + mutation + '?dataset=gnomad_r3'
         gnomADLink = html.P(html.A('gnomAD frequency',target='_blank', href = gnomAD_Url, style = {'fontSize' : 18}), style = linkStyle)
         informationWindow.append(gnomADLink)
+        if referenceGenome.endswith('19'):
+            geniePool_Url = 'https://geniepool.link/?reference=hg19?coordinates=' + coordinates + '-' + coordinates.split(':')[1]
+        elif referenceGenome.endswith('38'):
+            geniePool_Url = 'https://geniepool.link/?reference=hg38?coordinates=' + coordinates + '-' + coordinates.split(':')[1]
+        geniePoolLink = html.P(html.A('GeniePool',target='_blank', href = geniePool_Url, style = {'fontSize' : 18}), style = linkStyle)
+        informationWindow.append(geniePoolLink)
         if grouping_df.empty == False:
             groups = [group for group in list(grouping_df['Group'].unique()) if group != None]
             groups_dict = pd.Series(grouping_df['Group'].values, index = grouping_df['Sample']).to_dict()
@@ -458,7 +463,7 @@ def getVariantData(selected_row_index, data, referenceGenome, grouping_df):
         return [informationWindow]
 
 
-# In[10]:
+# In[ ]:
 
 
 @app.callback(
@@ -482,9 +487,9 @@ def populationAnalysis(data, n_clicks):
             1 / (1 + distance_matrix(df.T, df.T)),
             columns = df.columns, index = df.columns
         )
-        fig_heatmap = px.imshow(df_euclid, labels={'x': 'Sample 1', 'y':'Sample 2', 'color' : 'Similarity score'})
-        fig_heatmap.update_xaxes(visible=False)
-        fig_heatmap.update_yaxes(visible=False)
+        fig_heatmap = px.imshow(df_euclid, labels = {'x': 'Sample 1', 'y':'Sample 2', 'color' : 'Similarity score'})
+        fig_heatmap.update_xaxes(visible = False)
+        fig_heatmap.update_yaxes(visible = False)
         heatmap = dcc.Graph(figure = fig_heatmap)
         
         explanation1 = html.P('Mouseover the heatmap to find similarity between each two samples',
@@ -497,21 +502,28 @@ def populationAnalysis(data, n_clicks):
             placeholder = 'Show samples most similar to...',
             style = {'margin' : 'auto', 'width' : '75%', 'display' : 'inline-block','textAlign' : 'center'}
         )
-        mostSimilarDiv = html.Div([html.Div(id = 'mostSimilar'), mostSimilarDropDown], style = {'width' : '100%', 'display' : 'inline-block','textAlign' : 'center'})        
+        mostSimilarDiv = html.Div([html.Div(id = 'mostSimilar'), mostSimilarDropDown], style = {'width' : '100%', 'display' : 'inline-block', 'textAlign' : 'center'})        
         if len(samples) >= 10:
-            umap_btn = html.Button('Perform UMAP clustering analysis',
-                id = 'umap_start_btn', 
+            umap_link = 'https://umap-learn.readthedocs.io/en/latest/index.html'
+            umap = html.A('Cluster samples by similarity using UMAP ⓘ', href = umap_link, target = '_blank', style = {'color' : 'black', 'text-decoration' : 'none'})
+            clustering_k = dcc.Input(id = 'clustering_k', type = 'number', min = 2, max = int(len(samples)/2), placeholder = 'n_neighbors', step = 1, style = {'text-transform' : 'none', 'font-size' : 16, 'margin' : 'auto', 'textAlign' : 'center'})
+            clustering_dimensions = dcc.RadioItems([{'label': '3D', 'value': '3D'}, {'label': '2D', 'value': '2D'}], '3D', id = 'clustering_dimensions', inline = True, style = {'text-transform' : 'none', 'font-size' : 16, 'margin' : 'auto'})
+            clustering_btn = html.Button('Generate graph',
+                id = 'clustering_start_btn', 
                 n_clicks = 0,
                 style = {'text-transform' : 'none', 'font-size' : 20, 'margin' : 'auto'}
             )
         else:
-            umap_btn = html.Button('Perform UMAP clustering analysis',
-                id = 'umap_start_btn', 
+            umap = None
+            clustering_k = dcc.Input(id = 'clustering_k', type = 'number', min = 2, max = int(len(samples)/2), placeholder = 'n_neighbors', step = 1, style = {'display' : 'none'})
+            clustering_dimensions = dcc.RadioItems([{'label': '3D', 'value': '3D'}, {'label': '2D', 'value': '2D'}], '3D', id = 'clustering_dimensions', inline = True, style = {'display' : 'none'})
+            clustering_btn = html.Button('Generate graph',
+                id = 'clustering_start_btn',
                 n_clicks = 0,
                 style = {'display' : 'none'}
             )
-        umapDiv = html.Div([html.Div(id = 'umapResult'), umap_btn], style = {'width' : '100%', 'display' : 'inline-block','textAlign' : 'center'})        
-        children = [explanation1, heatmap, html.Br(), mostSimilarDiv, html.Br(), html.Hr(), umapDiv]
+        clusteringDiv = html.Div([umap, html.Div(html.H1('Your graph will be displayed here', style = {'font-style' : 'italic'}), id = 'clusteringResult'), clustering_k, clustering_dimensions, clustering_btn], style = {'width' : '100%', 'display' : 'inline-block','textAlign' : 'center'})        
+        children = [explanation1, heatmap, html.Br(), mostSimilarDiv, html.Br(), html.Hr(), clusteringDiv]
         return [children, {'display' : 'none'}, df_euclid.to_dict('records')]
 
 @app.callback(
@@ -525,44 +537,108 @@ def getMostSimilarSamples(data, sample):
     if sample == None:
         return [dash.no_update]
     df = pd.DataFrame(data, columns = data[0])
-    df.sort_values(sample, ascending = False, inplace = True)
-    df.index = df.columns
-    df.drop(sample, inplace = True)
+    i = list(data[0]).index(sample)
+    df = df.iloc[[i]]
+    del df[sample]
+    df = df.T
+    df.columns = ['Sample']
+    df.sort_values('Sample', inplace = True)
     order = list(df.index)
     title = html.H3('Samples most similar to ' + sample)
-    fig = go.Figure(go.Bar(x = order, y = df[sample]))
+    fig = go.Figure(go.Bar(x = order, y = df['Sample']))
     fig.update_layout(paper_bgcolor = 'rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+    fig.update_xaxes(visible = False, showticklabels = False)
     graph = dcc.Graph(figure = fig)
     return [html.Div([title, graph])]
 
 @app.callback(
-    [Output('umapResult', 'children'),
-     Output('umap_start_btn', 'style'),
+    [Output('clustering_start_btn', 'disabled'),
      ],
-    [Input('umap_start_btn', 'n_clicks'),
-     Input('yyf_df', 'data'),
+    [Input('clustering_k', 'value'),
     ]
 )
-def generateUmap(n_clicks, data):
-    if n_clicks == 0:
-        return [dash.no_update, dash.no_update]
+def clusteringBtnAvailability(v):
+    if type(v) == int:
+        return [False]
     else:
-        reducer = umap.UMAP(low_memory = True)
+        return [True]
+
+@app.callback(
+    [Output('clusteringResult', 'children'),
+     Output('clustering_start_btn', 'style'),
+     Output('cluster_btn_clicks', 'data')
+     ],
+    [Input('clustering_start_btn', 'n_clicks'),
+     Input('clustering_k', 'value'),
+     Input('clustering_dimensions', 'value'),
+     Input('yyf_df', 'data'),
+     Input('grouping_df', 'data'),
+     Input('cluster_btn_clicks', 'data')
+    ]
+)
+def generateDimensionReduction(n_clicks, k_, dimensions, data, groups, clicked):
+    if n_clicks == None:
+        n_clicks = 0
+    if n_clicks == 0 or n_clicks == clicked:
+        return [dash.no_update, dash.no_update, dash.no_update]
+    else:
+        dimensions = int(dimensions[0])
+        if type(k_) != int:
+            return [dash.no_update, dash.no_update, dash.no_update]
+        k_ = int(k_)
         df = pd.DataFrame(data[1:], columns = data[0])
+        df['Alleles'] = df['Alleles'].astype(int)
+        df = df[df['Alleles'] > 1]
+        df = df[df[df.columns[3]].str[0].str.isdigit()]
         df = df[df.columns[7:]]
         df.replace('','0', inplace = True)
         df = df.astype(int)
         df = df.T
+        reducer = umap.UMAP(low_memory = True, n_neighbors = k_, n_components = dimensions)
         data = StandardScaler().fit_transform(df)
         embedding = reducer.fit_transform(data)
         df['Sample'] = df.index
-        df['UMAP 1'] = embedding[:,0]
-        df['UMAP 2'] = embedding[:,1]
-        df = df[['UMAP 1', 'UMAP 2', 'Sample']]
-        fig_umap = px.scatter(df, x = 'UMAP 1', y = 'UMAP 2', hover_data = ['Sample'], title = 'UMAP', opacity = 0.5)
-        fig_umap.update_layout(title_x = 0.5)
-        Umap = dcc.Graph(figure = fig_umap)
-        return [Umap, {'display' : 'none'}]
+        df['Component 1'] = embedding[:,0]
+        df['Component 2'] = embedding[:,1]
+        df = df[['Component 1', 'Component 2', 'Sample']]
+        if dimensions == 3:
+            df['Component 3'] = embedding[:,2]
+            df = df[['Component 1', 'Component 2', 'Component 3', 'Sample']]
+            if type(groups) == list:
+                groups = {i['Sample'] : i ['Group'] for  i in groups}
+                df['Group'] = df['Sample'].apply(lambda x : groups[x])
+                fig = px.scatter_3d(df, x = 'Component 1', y = 'Component 2', z = 'Component 3', hover_data = ['Sample'], title = 'UMAP', color = 'Group')
+            else:
+                fig = px.scatter_3d(df, x = 'Component 1', y = 'Component 2', z = 'Component 3', hover_data = ['Sample'], title = 'UMAP')
+            fig.update_traces(marker_size = 4)
+        else:
+            df = df[['Component 1', 'Component 2', 'Sample']]
+            if type(groups) == list:
+                groups = {i['Sample'] : i ['Group'] for  i in groups}
+                df['Group'] = df['Sample'].apply(lambda x : groups[x])
+                fig = px.scatter(df, x = 'Component 1', y = 'Component 2', hover_data = ['Sample'], title = 'UMAP', color = 'Group')
+            else:
+                fig = px.scatter(df, x = 'Component 1', y = 'Component 2', hover_data = ['Sample'], title = 'UMAP')
+        fig.update_layout(title_x = 0.5)
+        fig.update_layout(
+            scene = dict(
+                xaxis = dict(showticklabels = False),
+                yaxis = dict(showticklabels = False),
+                zaxis = dict(showticklabels = False),
+            )
+        )
+        graph = dcc.Graph(figure = fig)
+        graphDiv = html.Div(graph, style = {'width' : '100%', 'display' : 'inline-block','textAlign' : 'center', 'marginBottom': 50}, id = 'graphDiv_focus')
+        return [graphDiv, dash.no_update, n_clicks]
+
+app.clientside_callback(
+    ClientsideFunction(
+        namespace = 'clientside',
+        function_name = 'focus'
+    ),
+    Output('header_image', 'style'),
+    [Input('clusteringResult', 'children')]
+)
 
 
 # In[ ]:
@@ -577,5 +653,5 @@ if __name__ == '__main__':
     app.run_server(port = 7454, host = local_ip_address)
 '''
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    app.run_server()
 
